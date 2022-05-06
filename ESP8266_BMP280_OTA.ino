@@ -5,15 +5,17 @@
  * @copyright   Copyright © 2022 Adam Howell
  * @licence     The MIT License (MIT)
  */
-#include <ESP8266WiFi.h>						// This header is part of the standard library.  https://www.arduino.cc/en/Reference/WiFi
-#include <Wire.h>						// This header is part of the standard library.  https://www.arduino.cc/en/reference/wire
-#include <PubSubClient.h>			// PubSub is the MQTT API.  Author: Nick O'Leary  https://github.com/knolleary/pubsubclient
-#include <Adafruit_BMP280.h>		// The Adafruit library for BMP280 sensor.
-#include <Adafruit_Sensor.h>		// The Adafruit sensor library.
-#include "privateInfo.h"			// I use this file to hide my network information from random people browsing my GitHub repo.
-#include <ThingSpeak.h>				// https://github.com/mathworks/thingspeak-arduino
-//#include <Arduino_JSON.h>			// https://github.com/arduino-libraries/Arduino_JSON
-#include <ArduinoJson.h>			// https://arduinojson.org/
+#include "privateInfo.h"	  // I use this file to hide my network information from random people browsing my GitHub repo.
+#include <Adafruit_BMP280.h> // The Adafruit library for BMP280 sensor.
+#include <Adafruit_Sensor.h> // The Adafruit sensor library.
+#include <ArduinoJson.h>	  // https://arduinojson.org/
+#include <ArduinoOTA.h>		  // OTA
+#include <ESPmDNS.h>			  // OTA
+#include <WiFiUdp.h>			  // OTA
+#include <ESP8266WiFi.h>	  // This header is part of the standard library.  https://www.arduino.cc/en/Reference/WiFi
+#include <PubSubClient.h>	  // PubSub is the MQTT API.  Author: Nick O'Leary  https://github.com/knolleary/pubsubclient
+#include <Wire.h>				  // This header is part of the standard library.  https://www.arduino.cc/en/reference/wire
+
 
 #define BMP280_I2C_ADDRESS 0x76	// Confirmed working I2C address as of 2021-08-21, for the GY-BM model https://smile.amazon.com/gp/product/B07S98QBTQ/.
 
@@ -28,18 +30,21 @@
 const char* mqttTopic = "espWeather";
 const char* sketchName = "ESP8266BMP280ThingSpeak";
 const char* notes = "Lolin ESP8266 with BMP280";
-const int LED_PIN = 2;											// This LED for the Lolin devkit is on the ESP8266 module itself (next to the antenna).
 const char* espControlTopic = "espControl";				// This is a topic we subscribe to, to get updates.  Updates may change publishDelay, seaLevelPressure, or request an immediate poll of the sensors.
+const byte sdaGPIO = 4;											// Use this to set the SDA GPIO if your board uses a non-standard GPIOs for the I2C bus.
+const byte sclGPIO = 5;											// Use this to set the SCL GPIO if your board uses a non-standard GPIOs for the I2C bus.
 
 char ipAddress[16];
 char macAddress[18];
+const int LED_PIN = 2;											// The LED on the devkit.
 unsigned int loopCount = 0;									// This is a counter for how many loops have happened since power-on (or overflow).
 unsigned long publishDelay = 60000;							// This is the loop delay in miliseconds.
 int mqttReconnectDelay = 5000;								// How long to wait (in milliseconds) between MQTT connection attempts.
 unsigned long lastPublish = 0;								// This is used to determine the time since last MQTT publish.
 float seaLevelPressure = 1014.5;								// Adjust this to the sea level pressure (in hectopascals) for your local weather conditions.
 float bmp280TPA[3];												// This holds the temperature, pressure, and altitude.
-unsigned long bootTime;
+unsigned long lastReading = 0;								// The millis() time of the last telemetry read.
+unsigned long bootTime;											// Time of the most recent boot.
 // Provo Airport: https://forecast.weather.gov/data/obhistory/KPVU.html
 // ThingSpeak variables
 unsigned long myChannelNumber = 1;
@@ -185,9 +190,9 @@ void mqttConnect( int maxAttempts )
 			Serial.print( ".  Trying again in " );
 			Serial.print( mqttReconnectDelay / 1000 );
 			Serial.println( " seconds." );
-			digitalWrite( LED_PIN, HIGH ); // Turn the LED on.
+			digitalWrite( LED_PIN, HIGH );	// Turn the LED on.
 			delay( mqttReconnectDelay / 2 );
-			digitalWrite( LED_PIN, LOW ); // Turn the LED off.
+			digitalWrite( LED_PIN, LOW );		// Turn the LED off.
 			delay( mqttReconnectDelay / 2 );
 		}
 		i++;
@@ -203,17 +208,19 @@ void mqttConnect( int maxAttempts )
 
 void setup()
 {
-	pinMode( LED_PIN, OUTPUT );			// Initialize digital pin WiFi LED as an output.
-	digitalWrite( LED_PIN, HIGH );	  // Turn the LED on.
 	delay( 500 );
-	// Start the Serial communication to send messages to the computer.
-	Serial.begin( 115200 );
+	pinMode( LED_PIN, OUTPUT );			// Initialize digital pin WiFi LED as an output.
+	digitalWrite( LED_PIN, HIGH );		// Turn the LED on.
+	Serial.begin( 115200 );					// Enable the serial port.
 	if( !Serial )
 		delay( 1000 );
 	Serial.println( '\n' );
 	Serial.print( sketchName );
 	Serial.println( " is beginning its setup()." );
 	Serial.println( __FILE__ );
+	// Wire.begin();							// Use default I2C GPIOs.
+	Wire.begin( sdaGPIO, sclGPIO );		// Override the default I2C GPIOs.
+
 
 	// Set the ipAddress char array to a default value.
 	snprintf( ipAddress, 16, "127.0.0.1" );
@@ -287,29 +294,39 @@ void publishTelemetry()
 	char mqttString[512];
 	// Write the readings to the String in JSON format.
 	snprintf( mqttString, 512, "{\n\t\"sketch\": \"%s\",\n\t\"mac\": \"%s\",\n\t\"ip\": \"%s\",\n\t\"tempC\": %.2f,\n\t\"pressure\": %.1f,\n\t\"altitude\": %.1f,\n\t\"seaLevelPressure\": %.1f,\n\t\"rssi\": %ld,\n\t\"loopCount\": %d,\n\t\"notes\": \"%s\"\n}", sketchName, macAddress, ipAddress, bmp280TPA[0], bmp280TPA[1], bmp280TPA[2], seaLevelPressure, rssi, loopCount, notes );
-	// Publish the JSON to the MQTT broker.
+	/*
+	 * Publish the JSON to the MQTT broker.
+	 * boolean publish (topic, payload, [length], [retained])
+	 *    topic const char[] - the topic to publish to
+	 *    payload const char[], byte[] - the message to publish
+	 *    length unsigned int (optional) - the length of the payload. Required if payload is a byte[]
+	 *    retained boolean (optional) - whether the message should be retained
+	 * Returns false if the publish failed, either because connection lost or the message was too large.
+	 */
 	bool success = mqttClient.publish( mqttTopic, mqttString, false );
 	if( success )
+	{
 		Serial.println( "Successfully published this to the broker:" );
+		// New format: <location>/<device>/<sensor>/<metric>
+		// sketchName, macAddress, ipAddress, tempC, pressure, altitude, seaLevelPressure, rssi, loopCount, notes
+		mqttClient.publish( "backYard/Work8266/sketch", sketchName, false );
+		mqttClient.publish( "backYard/Work8266/mac", macAddress, false );
+		mqttClient.publish( "backYard/Work8266/ip", ipAddress, false );
+		mqttClient.publish( "backYard/Work8266/rssi", ltoa( rssi, buffer, 10 ), false );
+		mqttClient.publish( "backYard/Work8266/loopCount", ltoa( loopCount, buffer, 10 ), false );
+		mqttClient.publish( "backYard/Work8266/notes", notes, false );
+		// char buffer[20];
+		// dtostrf( soilTempC, 1, 3, buffer );
+		mqttClient.publish( "backYard/Work8266/bmp280/tempC", bmp280TPA[0], false );
+		mqttClient.publish( "backYard/Work8266/bmp280/pressure", bmp280TPA[1], false );
+		mqttClient.publish( "backYard/Work8266/bmp280/altitude", bmp280TPA[2], false );
+		mqttClient.publish( "backYard/Work8266/bmp280/seaLevelPressure", seaLevelPressure, false );
+	}
 	else
 		Serial.println( "MQTT publish failed!  Attempted to publish this to the broker:" );
 	// Print the JSON to the Serial port.
 	Serial.println( mqttString );
 	lastPublish = millis();
-}
-
-
-void publishThingSpeak()
-{
-	// Set the ThingSpeak fields.
-	ThingSpeak.setField( 1, bmp280TPA[0] );
-	ThingSpeak.setField( 2, bmp280TPA[1] );
-	ThingSpeak.setField( 3, bmp280TPA[2] );
-	int x = ThingSpeak.writeFields( myChannelNumber, ThingSpeakWriteKey );
-	if( x == 200 )
-		Serial.println( "Thingspeak update successful." );
-	else
-		Serial.println( "Problem updating channel. HTTP error code " + String( x ) );
 }
 
 
