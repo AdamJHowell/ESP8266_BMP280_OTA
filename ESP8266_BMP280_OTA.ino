@@ -3,7 +3,7 @@
  * The BMP280 uses the I2C bus to communicate with the microcontroller.
  * The ESP8266/ESP-12E SCL pin is D1 (GPIO5), and SDA is D2 (GPIO4).
  * @copyright   Copyright © 2022 Adam Howell
- * @licence     The MIT License (MIT)
+ * @license     The MIT License (MIT)
  */
 #include "privateInfo.h"	  // I use this file to hide my network information from random people browsing my GitHub repo.
 #include <Adafruit_BMP280.h> // The Adafruit library for BMP280 sensor.
@@ -38,7 +38,7 @@ char ipAddress[16];
 char macAddress[18];
 const int LED_PIN = 2;											// The LED on the devkit.
 unsigned int loopCount = 0;									// This is a counter for how many loops have happened since power-on (or overflow).
-unsigned long publishDelay = 60000;							// This is the loop delay in miliseconds.
+unsigned long publishDelay = 60000;							// This is the loop delay in milliseconds.
 int mqttReconnectDelay = 5000;								// How long to wait (in milliseconds) between MQTT connection attempts.
 unsigned long lastPublish = 0;								// This is used to determine the time since last MQTT publish.
 float seaLevelPressure = 1014.5;								// Adjust this to the sea level pressure (in hectopascals) for your local weather conditions.
@@ -342,7 +342,7 @@ void loop()
 	mqttClient.loop();
 
 	unsigned long time = millis();
-	// When time is less than publishDelay, subtracting publishDelay from time causes an overlow which results in a very large number.
+	// When time is less than publishDelay, subtracting publishDelay from time causes an overflow which results in a very large number.
 	if( lastPublish == 0 || ( ( time > publishDelay ) && ( time - publishDelay ) > lastPublish ) )
 	{
 		loopCount++;
