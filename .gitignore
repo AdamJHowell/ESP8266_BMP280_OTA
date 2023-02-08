@@ -2,7 +2,7 @@ cmake-build-*/
 .vscode/
 .idea/
 *.iml
-privateInfo.h
+privateInfo.*
 debug_custom.json
 *.svd
 networkVariables.h
