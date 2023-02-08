@@ -1,40 +1,72 @@
-# Common settings
-BasedOnStyle:	GNU
-TabWidth:		3
-IndentWidth:	3
-UseTab:			Always
-ColumnLimit:	100
-
-AlignTrailingComments:						true
-AllowShortFunctionsOnASingleLine:		All
-AllowShortIfStatementsOnASingleLine:	true
-AllowShortBlocksOnASingleLine:			true
-AllowShortLoopsOnASingleLine:				true
-AlwaysBreakAfterReturnType:				None
-AlwaysBreakAfterDefinitionReturnType:	false
-BinPackArguments:								false
-BinPackParameters:							false
-BreakBeforeBraces:							Allman
-ColumnLimit:									0
-IndentCaseLabels:								true
-MaxEmptyLinesToKeep:							2
-PointerBindsToType:							false
-ReflowComments:								false
-SortIncludes:									false
-
-SpaceAfterCStyleCast:				false
-SpacesInCStyleCastParentheses:	true
-SpaceBeforeAssignmentOperators:	true
-SpaceBeforeParens:					Never
-SpaceInEmptyParentheses:			false
-SpacesBeforeTrailingComments:		1
-SpacesInAngles:						false
-SpacesInContainerLiterals:			true
-SpacesInParentheses:					true
-SpacesInSquareBrackets:				false
-SpaceAfterTemplateKeyword:			true
-SpaceBeforeInheritanceColon:		true
-
-PenaltyReturnTypeOnItsOwnLine:	9999
-PenaltyBreakComment:					1000
-PenaltyBreakString:					1000
+# Generated from CLion C/C++ Code Style settings
+BasedOnStyle:                              LLVM
+AccessModifierOffset:                      -3
+AlignAfterOpenBracket:                     Align
+AlignConsecutiveAssignments:               None
+AlignConsecutiveMacros:
+   Enabled:          true
+   AcrossEmptyLines: true
+   AcrossComments:   true
+AlignOperands:                             Align
+AlignTrailingComments:                     true
+AllowAllArgumentsOnNextLine:               false
+AllowAllConstructorInitializersOnNextLine: false
+AllowAllParametersOfDeclarationOnNextLine: false
+AllowShortBlocksOnASingleLine:             Always
+AllowShortCaseLabelsOnASingleLine:         false
+AllowShortFunctionsOnASingleLine:          All
+AllowShortIfStatementsOnASingleLine:       Always
+AllowShortLambdasOnASingleLine:            All
+AllowShortLoopsOnASingleLine:              true
+AlwaysBreakAfterReturnType:                None
+AlwaysBreakTemplateDeclarations:           Yes
+BreakBeforeBraces:                         Custom
+BraceWrapping:
+   AfterCaseLabel:        false
+   AfterClass:            true
+   AfterControlStatement: Always
+   AfterEnum:             true
+   AfterFunction:         true
+   AfterNamespace:        true
+   AfterUnion:            true
+   BeforeCatch:           true
+   BeforeElse:            true
+   IndentBraces:          false
+   SplitEmptyFunction:    false
+   SplitEmptyRecord:      true
+BreakBeforeBinaryOperators:                None
+BreakBeforeTernaryOperators:               true
+BreakConstructorInitializers:              BeforeColon
+BreakInheritanceList:                      BeforeColon
+ColumnLimit:                               0
+CompactNamespaces:                         false
+ContinuationIndentWidth:                   6
+IndentCaseLabels:                          true
+IndentPPDirectives:                        None
+IndentWidth:                               3
+KeepEmptyLinesAtTheStartOfBlocks:          true
+MaxEmptyLinesToKeep:                       2
+NamespaceIndentation:                      All
+ObjCSpaceAfterProperty:                    false
+ObjCSpaceBeforeProtocolList:               true
+PointerAlignment:                          Right
+ReflowComments:                            false
+SeparateDefinitionBlocks:                  Always
+SpaceAfterCStyleCast:                      true
+SpaceAfterLogicalNot:                      false
+SpaceAfterTemplateKeyword:                 false
+SpaceBeforeAssignmentOperators:            true
+SpaceBeforeCpp11BracedList:                false
+SpaceBeforeCtorInitializerColon:           true
+SpaceBeforeInheritanceColon:               true
+SpaceBeforeParens:                         Never
+SpaceBeforeRangeBasedForLoopColon:         false
+SpaceInEmptyParentheses:                   false
+SpacesBeforeTrailingComments:              1
+SpacesInAngles:                            false
+SpacesInCStyleCastParentheses:             true
+SpacesInContainerLiterals:                 false
+SpacesInParentheses:                       true
+SpacesInSquareBrackets:                    false
+TabWidth:                                  3
+UseTab:                                    Always

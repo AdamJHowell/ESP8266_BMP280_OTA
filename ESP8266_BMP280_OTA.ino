@@ -5,19 +5,19 @@
  * @copyright   Copyright © 2022 Adam Howell
  * @license     The MIT License (MIT)
  */
-#include "privateInfo.h"	  // I use this file to hide my network information from random people browsing my GitHub repo.
-#include <Adafruit_BMP280.h> // The Adafruit library for BMP280 sensor.
-#include <Adafruit_Sensor.h> // The Adafruit sensor library.
-#include <ArduinoJson.h>	  // https://arduinojson.org/
-#include <ArduinoOTA.h>		  // OTA
-#include <ESPmDNS.h>			  // OTA
-#include <WiFiUdp.h>			  // OTA
-#include <ESP8266WiFi.h>	  // This header is part of the standard library.  https://www.arduino.cc/en/Reference/WiFi
-#include <PubSubClient.h>	  // PubSub is the MQTT API.  Author: Nick O'Leary  https://github.com/knolleary/pubsubclient
-#include <Wire.h>				  // This header is part of the standard library.  https://www.arduino.cc/en/reference/wire
+#include "privateInfo.h"		// I use this file to hide my network information from random people browsing my GitHub repo.
+#include <Adafruit_BMP280.h>	// The Adafruit library for BMP280 sensors.
+#include <Adafruit_Sensor.h>	// The Adafruit sensor library.
+#include <ArduinoJson.h>		// https://arduinojson.org/
+#include <ArduinoOTA.h>			// OTA
+#include <ESPmDNS.h>				// Multicast DBS needed for OTA updates using the hostname.
+#include <WiFiUdp.h>				// OTA
+#include <ESP8266WiFi.h>		// This header is part of the standard library.  https://www.arduino.cc/en/Reference/WiFi
+#include <PubSubClient.h>		// PubSub is the MQTT API.  Author: Nick O'Leary  https://github.com/knolleary/pubsubclient
+#include <Wire.h>					// This header is part of the standard library.  https://www.arduino.cc/en/reference/wire
 
 
-#define BMP280_I2C_ADDRESS 0x76	// Confirmed working I2C address as of 2021-08-21, for the GY-BM model https://smile.amazon.com/gp/product/B07S98QBTQ/.
+#define BMP280_I2C_ADDRESS 0x76 // Confirmed working I2C address as of 2021-08-21, for the GY-BM model https://smile.amazon.com/gp/product/B07S98QBTQ/.
 
 /**
  * The commented-out variables are stored in "privateInfo.h", which I do not upload to GitHub.
@@ -27,24 +27,24 @@
 //const char* wifiPassword = "your WiFi password";
 //const char* mqttBroker = "your broker address";
 //const int mqttPort = 1883;
-const char* mqttTopic = "espWeather";
-const char* sketchName = "ESP8266BMP280ThingSpeak";
-const char* notes = "Lolin ESP8266 with BMP280";
-const char* espControlTopic = "espControl";				// This is a topic we subscribe to, to get updates.  Updates may change publishDelay, seaLevelPressure, or request an immediate poll of the sensors.
-const byte sdaGPIO = 4;											// Use this to set the SDA GPIO if your board uses a non-standard GPIOs for the I2C bus.
-const byte sclGPIO = 5;											// Use this to set the SCL GPIO if your board uses a non-standard GPIOs for the I2C bus.
+const char *mqttTopic = "espWeather";
+const char *sketchName = "ESP8266BMP280ThingSpeak";
+const char *notes = "Lolin ESP8266 with BMP280";
+const char *espControlTopic = "espControl"; // This is a topic we subscribe to, to get updates.  Updates may change publishDelay, seaLevelPressure, or request an immediate poll of the sensors.
+const byte sdaGPIO = 4;							  // Use this to set the SDA GPIO if your board uses a non-standard GPIOs for the I2C bus.
+const byte sclGPIO = 5;							  // Use this to set the SCL GPIO if your board uses a non-standard GPIOs for the I2C bus.
 
 char ipAddress[16];
 char macAddress[18];
-const int LED_PIN = 2;											// The LED on the devkit.
-unsigned int loopCount = 0;									// This is a counter for how many loops have happened since power-on (or overflow).
-unsigned long publishDelay = 60000;							// This is the loop delay in milliseconds.
-int mqttReconnectDelay = 5000;								// How long to wait (in milliseconds) between MQTT connection attempts.
-unsigned long lastPublish = 0;								// This is used to determine the time since last MQTT publish.
-float seaLevelPressure = 1014.5;								// Adjust this to the sea level pressure (in hectopascals) for your local weather conditions.
-float bmp280TPA[3];												// This holds the temperature, pressure, and altitude.
-unsigned long lastReading = 0;								// The millis() time of the last telemetry read.
-unsigned long bootTime;											// Time of the most recent boot.
+const int LED_PIN = 2;					// The LED on the devkit.
+unsigned int loopCount = 0;			// This is a counter for how many loops have happened since power-on (or overflow).
+unsigned long publishDelay = 60000; // This is the loop delay in milliseconds.
+int mqttReconnectDelay = 5000;		// How long to wait (in milliseconds) between MQTT connection attempts.
+unsigned long lastPublish = 0;		// This is used to determine the time since last MQTT publish.
+float seaLevelPressure = 1014.5;		// Adjust this to the sea level pressure (in hectopascals) for your local weather conditions.
+float bmp280TPA[3];						// This holds the temperature, pressure, and altitude.
+unsigned long lastReading = 0;		// The millis() time of the last telemetry read.
+unsigned long bootTime;					// Time of the most recent boot.
 // Provo Airport: https://forecast.weather.gov/data/obhistory/KPVU.html
 // ThingSpeak variables
 unsigned long myChannelNumber = 1;
@@ -56,26 +56,26 @@ WiFiClient espClient;
 PubSubClient mqttClient( espClient );
 
 
-void onReceiveCallback( char* topic, byte* payload, unsigned int length )
+void onReceiveCallback( char *topic, byte *payload, unsigned int length )
 {
 	char str[length + 1];
 	Serial.print( "Message arrived [" );
 	Serial.print( topic );
 	Serial.print( "] " );
-	int i=0;
+	int i = 0;
 	for( i = 0; i < length; i++ )
 	{
-		Serial.print( ( char ) payload[i] );
+		Serial.print( ( char )payload[i] );
 		str[i] = ( char )payload[i];
 	}
 	Serial.println();
 	str[i] = 0; // Null termination
-	StaticJsonDocument <256> doc;
+	StaticJsonDocument<256> doc;
 	deserializeJson( doc, str );
 
 	// The command can be: publishTelemetry, changeTelemetryInterval, changeSeaLevelPressure, or publishStatus.
-	const char* command = doc["command"];
-	if( strcmp( command, "publishTelemetry") == 0 )
+	const char *command = doc["command"];
+	if( strcmp( command, "publishTelemetry" ) == 0 )
 	{
 		Serial.println( "Reading and publishing sensor values." );
 		// Poll the sensor and immediately publish the readings.
@@ -84,7 +84,7 @@ void onReceiveCallback( char* topic, byte* payload, unsigned int length )
 		readTelemetry();
 		Serial.println( "Readings have been published." );
 	}
-	else if( strcmp( command, "changeTelemetryInterval") == 0 )
+	else if( strcmp( command, "changeTelemetryInterval" ) == 0 )
 	{
 		Serial.println( "Changing the publish interval." );
 		unsigned long tempValue = doc["value"];
@@ -95,14 +95,14 @@ void onReceiveCallback( char* topic, byte* payload, unsigned int length )
 		Serial.println( publishDelay );
 		lastPublish = 0;
 	}
-	else if( strcmp( command, "changeSeaLevelPressure") == 0 )
+	else if( strcmp( command, "changeSeaLevelPressure" ) == 0 )
 	{
 		Serial.println( "Changing the sea-level pressure." );
 		seaLevelPressure = doc["value"];
 		Serial.print( "Sea-level pressure has been updated to " );
 		Serial.println( seaLevelPressure );
 	}
-	else if( strcmp( command, "publishStatus") == 0 )
+	else if( strcmp( command, "publishStatus" ) == 0 )
 	{
 		Serial.println( "publishStatus is not yet implemented." );
 	}
@@ -158,7 +158,7 @@ void wifiConnect( int maxAttempts )
 	snprintf( ipAddress, 16, "%d.%d.%d.%d", WiFi.localIP()[0], WiFi.localIP()[1], WiFi.localIP()[2], WiFi.localIP()[3] );
 	Serial.println( ipAddress );
 
-	digitalWrite( LED_PIN, 0 );	// Turn the WiFi LED on.
+	digitalWrite( LED_PIN, 0 ); // Turn the WiFi LED on.
 } // End of wifiConnect() function.
 
 
@@ -190,9 +190,9 @@ void mqttConnect( int maxAttempts )
 			Serial.print( ".  Trying again in " );
 			Serial.print( mqttReconnectDelay / 1000 );
 			Serial.println( " seconds." );
-			digitalWrite( LED_PIN, HIGH );	// Turn the LED on.
+			digitalWrite( LED_PIN, HIGH ); // Turn the LED on.
 			delay( mqttReconnectDelay / 2 );
-			digitalWrite( LED_PIN, LOW );		// Turn the LED off.
+			digitalWrite( LED_PIN, LOW ); // Turn the LED off.
 			delay( mqttReconnectDelay / 2 );
 		}
 		i++;
@@ -209,9 +209,9 @@ void mqttConnect( int maxAttempts )
 void setup()
 {
 	delay( 500 );
-	pinMode( LED_PIN, OUTPUT );			// Initialize digital pin WiFi LED as an output.
-	digitalWrite( LED_PIN, HIGH );		// Turn the LED on.
-	Serial.begin( 115200 );					// Enable the serial port.
+	pinMode( LED_PIN, OUTPUT );	 // Initialize digital pin WiFi LED as an output.
+	digitalWrite( LED_PIN, HIGH ); // Turn the LED on.
+	Serial.begin( 115200 );			 // Enable the serial port.
 	if( !Serial )
 		delay( 1000 );
 	Serial.println( '\n' );
@@ -219,7 +219,7 @@ void setup()
 	Serial.println( " is beginning its setup()." );
 	Serial.println( __FILE__ );
 	// Wire.begin();							// Use default I2C GPIOs.
-	Wire.begin( sdaGPIO, sclGPIO );		// Override the default I2C GPIOs.
+	Wire.begin( sdaGPIO, sclGPIO ); // Override the default I2C GPIOs.
 
 
 	// Set the ipAddress char array to a default value.
@@ -227,7 +227,7 @@ void setup()
 
 	// Set the MQTT client parameters.
 	mqttClient.setServer( mqttBroker, mqttPort );
-	mqttClient.setCallback( onReceiveCallback );				 // Assign the onReceiveCallback() function to handle MQTT callbacks.
+	mqttClient.setCallback( onReceiveCallback ); // Assign the onReceiveCallback() function to handle MQTT callbacks.
 
 	Serial.println( "Attempting to connect to the BMP280..." );
 	if( !bmp280.begin( BMP280_I2C_ADDRESS ) )
@@ -244,7 +244,7 @@ void setup()
 	Serial.println( macAddress );
 
 	wifiConnect( 20 );
-	ThingSpeak.begin( espClient );  // Initialize ThingSpeak
+	ThingSpeak.begin( espClient ); // Initialize ThingSpeak
 
 	printUptime();
 } // End of setup() function.
@@ -278,9 +278,9 @@ void readTelemetry()
 {
 	// Get temperature, pressure and altitude from the Adafruit BMP280 library.
 	// Temperature is always a floating point in Centigrade units. Pressure is a 32 bit integer in Pascal units.
-	bmp280TPA[0] = bmp280.readTemperature();	 				// Get temperature.
-	bmp280TPA[1] = bmp280.readPressure();			 				// Get pressure.
-	bmp280TPA[2] = bmp280.readAltitude( seaLevelPressure );	// Get altitude based on the sea level pressure for your location. Note that "altitude" is a keyword, hence the underscore.
+	bmp280TPA[0] = bmp280.readTemperature();					  // Get temperature.
+	bmp280TPA[1] = bmp280.readPressure();						  // Get pressure.
+	bmp280TPA[2] = bmp280.readAltitude( seaLevelPressure ); // Get altitude based on the sea level pressure for your location. Note that "altitude" is a keyword, hence the underscore.
 }
 
 
@@ -347,9 +347,9 @@ void loop()
 	{
 		loopCount++;
 		// These next 3 lines act as a "heartbeat", to give local users a visual indication that the system is working.
-		digitalWrite( LED_PIN, 1 );	// Turn the WiFi LED off to alert the user that a reading is about to take place.
-		delay( 1000 );						// Wait for one second.
-		digitalWrite( LED_PIN, 0 );	// Turn the WiFi LED on.
+		digitalWrite( LED_PIN, 1 ); // Turn the WiFi LED off to alert the user that a reading is about to take place.
+		delay( 1000 );					 // Wait for one second.
+		digitalWrite( LED_PIN, 0 ); // Turn the WiFi LED on.
 
 		Serial.println( sketchName );
 		Serial.print( "Connected to broker at \"" );
@@ -366,7 +366,7 @@ void loop()
 		publishTelemetry();
 		publishThingSpeak();
 
-	  	Serial.print( "Next publish in " );
+		Serial.print( "Next publish in " );
 		Serial.print( publishDelay / 1000 );
 		Serial.println( " seconds.\n" );
 	}
