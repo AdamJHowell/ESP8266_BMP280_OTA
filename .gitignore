@@ -2,6 +2,8 @@
 .idea/
 *.iml
 privateInfo.h
+debug_custom.json
+*.svd
 networkVariables.h
 
 # Prerequisites
