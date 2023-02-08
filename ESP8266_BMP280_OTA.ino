@@ -277,7 +277,7 @@ void printUptime()
 void readTelemetry()
 {
 	// Get temperature, pressure and altitude from the Adafruit BMP280 library.
-	// Temperature is always a floating point in Centigrade units. Pressure is a 32 bit integer in Pascal units.
+	// Temperature is always a floating point in Centigrade units. Pressure is a 32-bit integer in Pascal units.
 	bmp280TPA[0] = bmp280.readTemperature();					  // Get temperature.
 	bmp280TPA[1] = bmp280.readPressure();						  // Get pressure.
 	bmp280TPA[2] = bmp280.readAltitude( seaLevelPressure ); // Get altitude based on the sea level pressure for your location. Note that "altitude" is a keyword, hence the underscore.
